@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { TAccountDB, TAccountDBPost, TUserDB, TUserDBPost } from './types'
 import { db } from './database/knex'
+import { User } from './models/User'
 
 const app = express()
 
@@ -44,7 +45,18 @@ app.get("/users", async (req: Request, res: Response) => {
             usersDB = result
         }
 
-        res.status(200).send(usersDB)
+        //Vai pegar os valores instaciados no User - convertendo do DB - e não no Banco de Dados(pois é mais saudavel)
+        const users: User[] = usersDB.map((userDB) => 
+            new User(
+                userDB.id,
+                userDB.email,
+                userDB.name,
+                userDB.password,
+                userDB.created_at
+               
+            ))
+
+        res.status(200).send(users)
     } catch (error) {
         console.log(error)
 
@@ -91,14 +103,27 @@ app.post("/users", async (req: Request, res: Response) => {
             throw new Error("'id' já existe")
         }
 
-        const newUser: TUserDBPost = {
+        const newUser = new User (
+
             id,
             name,
             email,
-            password
-        }
+            password,
+            new Date().toISOString()
+        )
 
-        await db("users").insert(newUser)
+        const newUserDB: TUserDB = {
+            id: newUser.getId(),
+            name : newUser.getName(),
+            email : newUser.getEmail(),
+            password: newUser.getPassword(),
+            created_at: newUser.getCreatedAt()
+            
+        }
+          
+        
+
+        await db("users").insert(newUserDB)
         const [ userDB ]: TUserDB[] = await db("users").where({ id })
 
         res.status(201).send(userDB)
